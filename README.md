@@ -44,6 +44,6 @@ Frontend (React) ↔ Backend (Node.js API) ↔ SQLite Database
 - Cloud deployment
 
 
-  ## Running the code
+ ## Running the code
 
   Run `npm i` to install the dependencies.
