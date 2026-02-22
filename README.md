@@ -49,9 +49,12 @@ Frontend (React) ↔ Backend (Node.js API) ↔ SQLite Database
 
 
 ## Screenshots
+-login
 <img width="1900" height="937" alt="image" src="https://github.com/user-attachments/assets/46f41073-2c10-4956-988c-32b6f4dde53b" />
 
+-Dashboard
 <img width="1886" height="948" alt="image" src="https://github.com/user-attachments/assets/1c64befa-8ca2-4713-a4fe-89e961b8eb0d" />
+
 
 <img width="1893" height="933" alt="image" src="https://github.com/user-attachments/assets/2115476b-360f-4397-81c1-7ac305c64c83" />
 
