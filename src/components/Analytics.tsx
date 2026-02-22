@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import {
@@ -12,9 +13,6 @@ import {
   Line,
   BarChart,
   Bar,
-  PieChart,
-  Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -23,15 +21,47 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { Download, FileText, Calendar } from 'lucide-react';
-import { resourceTrendData, volunteerActivityData, alertsDistribution } from '../data/mockData';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export function Analytics() {
+  const [resourcesData, setResourcesData] = useState([]);
+  const [alertsData, setAlertsData] = useState([]);
+  const [volunteerData, setVolunteerData] = useState([]);
+
+  const fetchAnalyticsData = async () => {
+    try {
+      const resourcesResponse = await fetch('http://localhost:5000/api/analytics/resources');
+      if (!resourcesResponse.ok) {
+        throw new Error('Failed to fetch resources analytics');
+      }
+      const resources = await resourcesResponse.json();
+      setResourcesData(resources);
+
+      const alertsResponse = await fetch('http://localhost:5000/api/analytics/alerts');
+      if (!alertsResponse.ok) {
+        throw new Error('Failed to fetch alerts analytics');
+      }
+      const alerts = await alertsResponse.json();
+      setAlertsData(alerts);
+
+      const volunteerResponse = await fetch('http://localhost:5000/api/analytics/volunteers');
+      if (!volunteerResponse.ok) {
+        throw new Error('Failed to fetch volunteer analytics');
+      }
+      const volunteers = await volunteerResponse.json();
+      setVolunteerData(volunteers);
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
+  };
+
+  useEffect(() => {
+    fetchAnalyticsData();
+  }, []);
+
   const handleDownloadReport = (reportType: string) => {
     toast.success(`${reportType} report downloaded successfully`);
   };
-
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
 
   return (
     <div className="p-6 space-y-6">
@@ -79,9 +109,9 @@ export function Analytics() {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={350}>
-            <LineChart data={resourceTrendData}>
+            <BarChart data={resourcesData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-              <XAxis dataKey="month" stroke="#9ca3af" />
+              <XAxis dataKey="category" stroke="#9ca3af" />
               <YAxis stroke="#9ca3af" />
               <Tooltip
                 contentStyle={{
@@ -92,77 +122,13 @@ export function Analytics() {
                 }}
               />
               <Legend />
-              <Line
-                type="monotone"
-                dataKey="water"
-                stroke="#3b82f6"
-                strokeWidth={2}
-                name="Water"
-              />
-              <Line
-                type="monotone"
-                dataKey="food"
-                stroke="#10b981"
-                strokeWidth={2}
-                name="Food"
-              />
-              <Line
-                type="monotone"
-                dataKey="medical"
-                stroke="#f59e0b"
-                strokeWidth={2}
-                name="Medical"
-              />
-              <Line
-                type="monotone"
-                dataKey="shelter"
-                stroke="#ef4444"
-                strokeWidth={2}
-                name="Shelter"
-              />
-            </LineChart>
+              <Bar dataKey="quantity" fill="#3b82f6" name="Quantity" />
+            </BarChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Volunteer Activity Chart */}
-        <Card className="border-gray-800 bg-gray-900">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-gray-100">Volunteer Activity</CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleDownloadReport('Volunteer Activity')}
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Export
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={volunteerActivityData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="week" stroke="#9ca3af" />
-                <YAxis stroke="#9ca3af" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#1f2937',
-                    border: '1px solid #374151',
-                    borderRadius: '6px',
-                    color: '#f3f4f6',
-                  }}
-                />
-                <Legend />
-                <Bar dataKey="active" fill="#3b82f6" name="Active" />
-                <Bar dataKey="deployed" fill="#10b981" name="Deployed" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
         {/* Alerts Distribution Chart */}
         <Card className="border-gray-800 bg-gray-900">
           <CardHeader>
@@ -180,59 +146,73 @@ export function Analytics() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={alertsDistribution}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {alertsDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
+              <LineChart data={alertsData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis dataKey="date" stroke="#9ca3af" />
+                <YAxis stroke="#9ca3af" />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#1f2937',
+                    border: '1px solid #374151',
+                    borderRadius: '6px',
+                    color: '#f3f4f6',
+                  }}
+                />
                 <Legend />
-              </PieChart>
+                <Line
+                  type="monotone"
+                  dataKey="count"
+                  stroke="#3b82f6"
+                  strokeWidth={2}
+                  name="Alerts"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Volunteer Activity Chart */}
+        <Card className="border-gray-800 bg-gray-900">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-gray-100">Volunteer Activity</CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleDownloadReport('Volunteer Activity')}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={volunteerData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis dataKey="date" stroke="#9ca3af" />
+                <YAxis stroke="#9ca3af" />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#1f2937',
+                    border: '1px solid #374151',
+                    borderRadius: '6px',
+                    color: '#f3f4f6',
+                  }}
+                />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="count"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  name="Volunteers"
+                />
+              </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
-
-      {/* Key Performance Indicators */}
-      <Card className="border-gray-800 bg-gray-900">
-        <CardHeader>
-          <CardTitle className="text-gray-100">Key Performance Indicators</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="p-4 bg-blue-950/30 rounded-lg border border-blue-900/50">
-              <p className="text-gray-400 mb-1">Response Time</p>
-              <p className="text-gray-100 mb-1">2.3 hours</p>
-              <p className="text-green-400">-15% from last month</p>
-            </div>
-            <div className="p-4 bg-green-950/30 rounded-lg border border-green-900/50">
-              <p className="text-gray-400 mb-1">Resource Utilization</p>
-              <p className="text-gray-100 mb-1">87%</p>
-              <p className="text-green-400">+5% from last month</p>
-            </div>
-            <div className="p-4 bg-purple-950/30 rounded-lg border border-purple-900/50">
-              <p className="text-gray-400 mb-1">Volunteer Satisfaction</p>
-              <p className="text-gray-100 mb-1">4.6/5.0</p>
-              <p className="text-green-400">+0.2 from last month</p>
-            </div>
-            <div className="p-4 bg-orange-950/30 rounded-lg border border-orange-900/50">
-              <p className="text-gray-400 mb-1">Alert Delivery Rate</p>
-              <p className="text-gray-100 mb-1">98.5%</p>
-              <p className="text-green-400">+1.2% from last month</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Downloadable Reports */}
       <Card className="border-gray-800 bg-gray-900">
@@ -287,7 +267,7 @@ export function Analytics() {
               onClick={() => handleDownloadReport('Alert History')}
               className="flex items-center space-x-4 p-4 bg-gray-800 hover:bg-gray-750 rounded-lg border border-gray-700 transition-colors"
             >
-              <div className="flex-shrink-0 w-12 h-12 bg-orange-900/50 rounded-lg flex items-center justify-center border border-orange-700">
+              <div className="flex-shrink-0 w-12 h-12 bg-orange-900/50 rounded-lg flex items-center justify-center border border-orange-900/50">
                 <FileText className="w-6 h-6 text-orange-400" />
               </div>
               <div className="flex-1 text-left">

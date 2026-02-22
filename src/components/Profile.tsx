@@ -11,41 +11,28 @@ import { RegisterPage } from './RegisterPage';
 
 export function Profile() {
   const [profileData, setProfileData] = useState({
-    name: 'John Smith',
-    email: 'john.smith@relief.org',
-    phone: '+1-555-0101',
-    role: 'Admin'
+    name: '',
+    email: '',
+    phone: '',
+    role: ''
   });
 
-  interface UserResponse {
-    
-     // or string, depending on your backend!
-    // add other fields here if your backend returns more info
-    name: string,
-    email: string,
-    phone: string,
-    role: string,
-  }
-
-  const handleUser = async (): Promise<void> => {
+  const fetchUserData = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/user', {
-        method: 'GET'
-      });
-      if (response.status !== 200) {
-        throw new Error('No response');
+      const response = await fetch('http://localhost:5000/api/user');
+      if (!response.ok) {
+        throw new Error('Failed to fetch user data');
       }
-      const data: UserResponse = await response.json();
+      const data = await response.json();
       setProfileData(data);
-      
-    } catch (err: any) {
-      alert(err.message);
+    } catch (error) {
+      toast.error((error as Error).message);
     }
   };
 
-   useEffect(() => {
-    handleUser();
-  }, []); // empty dependency array to run only once
+  useEffect(() => {
+    fetchUserData();
+  }, []);
 
 
   const [passwordData, setPasswordData] = useState({
@@ -54,12 +41,24 @@ export function Profile() {
     confirmPassword: '',
   });
 
-  const handleUpdateProfile = (e: React.FormEvent) => {
+  const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success('Profile updated successfully');
+    try {
+      const response = await fetch('http://localhost:5000/api/user', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(profileData)
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update profile');
+      }
+      toast.success('Profile updated successfully');
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
   };
 
-  const handleUpdatePassword = (e: React.FormEvent) => {
+  const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       toast.error('Passwords do not match');
@@ -69,12 +68,24 @@ export function Profile() {
       toast.error('Password must be at least 6 characters long');
       return;
     }
-    toast.success('Password updated successfully');
-    setPasswordData({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-    });
+    try {
+      const response = await fetch('http://localhost:5000/api/user/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(passwordData)
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update password');
+      }
+      toast.success('Password updated successfully');
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
   };
 
 
@@ -104,10 +115,6 @@ export function Profile() {
                 <div className="flex items-center space-x-2 text-gray-400">
                   <Phone className="w-4 h-4" />
                   <span>{profileData.phone}</span>
-                </div>
-                <div className="flex items-center space-x-2 text-gray-400">
-                  <Calendar className="w-4 h-4" />
-                  <span>Joined {profileData.joinDate}</span>
                 </div>
               </div>
             </div>

@@ -5,12 +5,13 @@ import { Layout } from './components/Layout';
 import { Dashboard } from './components/Dashboard';
 import { ResourceInventory } from './components/ResourceInventory';
 import { UserManagement } from './components/UserManagement';
+import { Team } from './components/Team';
 import { AlertsCenter } from './components/AlertsCenter';
 import { Analytics } from './components/Analytics';
-import { Profile} from './components/Profile';
+import { Profile } from './components/Profile';
 import { Toaster } from './components/ui/sonner';
 
-type Page = 'login' | 'register' | 'dashboard' | 'resources' | 'users' | 'alerts' | 'analytics' | 'profile';
+type Page = 'login' | 'register' | 'dashboard' | 'resources' | 'users' | 'alerts' | 'analytics' | 'team' | 'profile';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('login');
@@ -42,7 +43,7 @@ export default function App() {
       setIsAuthenticated(true);
       setUserName(data.name);
       setCurrentPage('dashboard');
-      
+
     } catch (err: any) {
       alert(err.message);
     }
@@ -74,7 +75,7 @@ export default function App() {
       const response = await fetch('http://localhost:5000/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: data.email, password: data.password, name: data.name, phone: data.phone, role:data.role})   //need to do something with the role
+        body: JSON.stringify({ email: data.email, password: data.password, name: data.name, phone: data.phone, role: data.role })   //need to do something with the role
       });
       if (response.status !== 201) {
         throw new Error('Registration failed');
@@ -109,6 +110,8 @@ export default function App() {
         return <AlertsCenter />;
       case 'analytics':
         return <Analytics />;
+      case 'team':
+        return <Team />;
       case 'profile':
         return <Profile />;
       default:

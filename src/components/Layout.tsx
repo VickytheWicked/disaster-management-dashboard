@@ -27,8 +27,10 @@ export function Layout({ children, currentPage, onNavigate, onLogout, userName =
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'resources', label: 'Resources', icon: Package },
     { id: 'users', label: 'Users', icon: Users },
-    { id: 'alerts', label: 'Alerts', icon: Bell, badge: 3 },
+    { id: 'alerts', label: 'Alerts', icon: Bell,/* badge: 3*/ },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+    { id: 'team', label: 'Team', icon: Users },
+
   ];
 
   const SidebarContent = ({ isMobile = false }: { isMobile?: boolean }) => (
@@ -55,11 +57,10 @@ export function Layout({ children, currentPage, onNavigate, onLogout, userName =
             <button
               key={item.id}
               onClick={() => onNavigate(item.id)}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-                isActive
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-              }`}
+              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${isActive
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                }`}
             >
               <Icon className="w-5 h-5" />
               <span className="flex-1 text-left">{item.label}</span>

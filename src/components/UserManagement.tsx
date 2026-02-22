@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -28,18 +28,57 @@ import {
 } from './ui/select';
 import { Badge } from './ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Search, Plus, Edit, Trash2, UserCircle, Mail, Phone } from 'lucide-react';
-import { mockUsers } from '../data/mockData';
+import { Search, Edit, Trash2, UserCircle, Mail, Phone } from 'lucide-react';
 import { User, UserRole } from '../types';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export function UserManagement() {
-  const [users, setUsers] = useState(mockUsers);
+  const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/users');
+      if (!response.ok) {
+        throw new Error('Failed to fetch users');
+      }
+      const data = await response.json();
+      setUsers(data);
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+
+  const [UserRole, setUserRole] = useState('');
+
+  const fetchUserRole = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/user');
+      if (!response.ok) {
+        throw new Error('Failed to fetch user data');
+      }
+      const data = await response.json();
+      setUserRole(data.role);
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
+  };
+
+  useEffect(() => {
+    fetchUserRole();
+  }, []);
+
+
+
+
 
   // Filter users
   const filteredUsers = users.filter((user) => {
@@ -66,18 +105,43 @@ export function UserManagement() {
     }
   };
 
-  const handleDelete = (id: string) => {
-    setUsers(users.filter((u) => u.id !== id));
-    toast.success('User removed successfully');
+  const handleDelete = async (id: number) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/users/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to delete user');
+      }
+      setUsers(users.filter((u) => u.id !== id));
+      toast.success('User removed successfully');
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
   };
 
-  const handleToggleStatus = (id: string) => {
-    setUsers(
-      users.map((u) =>
-        u.id === id ? { ...u, isActive: !u.isActive } : u
-      )
-    );
-    toast.success('User status updated');
+  const handleSave = async (data: Partial<User>) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/users/${data.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update user');
+      }
+
+      setUsers(
+        users.map((u) => (u.id === data.id ? { ...u, ...data } : u))
+      );
+      setIsEditDialogOpen(false);
+      toast.success('User updated successfully');
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
   };
 
   const UserForm = ({ user, onSave }: { user?: User; onSave: (data: Partial<User>) => void }) => {
@@ -87,7 +151,6 @@ export function UserManagement() {
         email: '',
         phone: '',
         role: 'Volunteer',
-        isActive: true,
       }
     );
 
@@ -140,30 +203,14 @@ export function UserManagement() {
               <SelectContent>
                 <SelectItem value="Admin">Admin</SelectItem>
                 <SelectItem value="Warehouse Manager">Warehouse Manager</SelectItem>
-                <SelectItem value="Field Coordinator">Field Coordinator</SelectItem>
                 <SelectItem value="Volunteer">Volunteer</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="status">Status</Label>
-            <Select
-              value={formData.isActive ? 'active' : 'inactive'}
-              onValueChange={(value) => setFormData({ ...formData, isActive: value === 'active' })}
-            >
-              <SelectTrigger id="status">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
         <DialogFooter>
           <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-            {user ? 'Update' : 'Add'} User
+            Update User
           </Button>
         </DialogFooter>
       </form>
@@ -178,38 +225,6 @@ export function UserManagement() {
           <h1 className="text-gray-100 mb-2">User Management</h1>
           <p className="text-gray-400">Manage team members and their roles</p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="w-4 h-4 mr-2" />
-              Add User
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Add New User</DialogTitle>
-              <DialogDescription>
-                Enter the details of the new team member
-              </DialogDescription>
-            </DialogHeader>
-            <UserForm
-              onSave={(data) => {
-                const newUser: User = {
-                  id: String(users.length + 1),
-                  name: data.name!,
-                  email: data.email!,
-                  phone: data.phone!,
-                  role: data.role!,
-                  createdAt: new Date().toISOString().split('T')[0],
-                  isActive: data.isActive!,
-                };
-                setUsers([...users, newUser]);
-                setIsAddDialogOpen(false);
-                toast.success('User added successfully');
-              }}
-            />
-          </DialogContent>
-        </Dialog>
       </div>
 
       {/* Stats Cards */}
@@ -287,7 +302,6 @@ export function UserManagement() {
                 <SelectItem value="all">All Roles</SelectItem>
                 <SelectItem value="Admin">Admin</SelectItem>
                 <SelectItem value="Warehouse Manager">Warehouse Manager</SelectItem>
-                <SelectItem value="Field Coordinator">Field Coordinator</SelectItem>
                 <SelectItem value="Volunteer">Volunteer</SelectItem>
               </SelectContent>
             </Select>
@@ -311,8 +325,6 @@ export function UserManagement() {
                   <TableHead>Email</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -347,30 +359,17 @@ export function UserManagement() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <button
-                        onClick={() => handleToggleStatus(user.id)}
-                        className="cursor-pointer"
-                      >
-                        <Badge
-                          className={
-                            user.isActive
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
-                          }
-                        >
-                          {user.isActive ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </button>
-                    </TableCell>
-                    <TableCell>{user.createdAt}</TableCell>
-                    <TableCell>
                       <div className="flex items-center space-x-2">
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => {
-                            setSelectedUser(user);
-                            setIsEditDialogOpen(true);
+                            if (UserRole == "Admin") {
+                              if (user.role != "Admin") {
+                                setSelectedUser(user);
+                                setIsEditDialogOpen(true);
+                              }
+                            }
                           }}
                         >
                           <Edit className="w-4 h-4" />
@@ -378,7 +377,11 @@ export function UserManagement() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDelete(user.id)}
+                          onClick={() => {
+                            if (UserRole == "Admin" && user.role != "Admin")
+                              handleDelete(user.id)
+                          }
+                          }
                         >
                           <Trash2 className="w-4 h-4 text-red-600" />
                         </Button>
@@ -409,15 +412,7 @@ export function UserManagement() {
           {selectedUser && (
             <UserForm
               user={selectedUser}
-              onSave={(data) => {
-                setUsers(
-                  users.map((u) =>
-                    u.id === selectedUser.id ? { ...u, ...data } : u
-                  )
-                );
-                setIsEditDialogOpen(false);
-                toast.success('User updated successfully');
-              }}
+              onSave={handleSave}
             />
           )}
         </DialogContent>

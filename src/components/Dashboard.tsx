@@ -1,71 +1,79 @@
-import { useState,useEffect } from 'react';
-
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Package, Users, Bell, AlertTriangle } from 'lucide-react';
-import { mockDashboardStats, mockAlerts, mockResources } from '../data/mockData';
 
 export function Dashboard() {
-  const stats = mockDashboardStats;
-  const recentAlerts = mockAlerts.slice(0, 3);
-  const lowStockResources = mockResources.filter(r => r.quantity < 100).slice(0, 4);
   const [count, setCount] = useState(0);
+  const [recentAlerts, setRecentAlerts] = useState([]);
+  const [lowStockResources, setLowStockResources] = useState([]);
+  const [totalResources, setTotalResources] = useState(0);
+  const [recentAlertsCount, setRecentAlertsCount] = useState(0);
+  const [lowStockItemsCount, setLowStockItemsCount] = useState(0);
 
-// interface Active {
-    
-//      // or string, depending on your backend!
-//     // add other fields here if your backend returns more info
-//     count: number,
-//   }
-
-  const handleCount = async (): Promise<void> => {
+  const fetchDashboardData = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/user', {
-        method: 'GET'
-      });
-      if (response.status !== 200) {
+      const volunteerResponse = await fetch('http://localhost:5000/api/user/volunteer');
+      if (!volunteerResponse.ok) {
         throw new Error('No response');
       }
-      const value= await response.json();
-      setCount(value);
+      const volunteerData = await volunteerResponse.json();
+      setCount(volunteerData.volunteerCount);
+
+      const alertsResponse = await fetch('http://localhost:5000/api/alerts');
+      if (!alertsResponse.ok) {
+        throw new Error('Failed to fetch alerts');
+      }
+      const alertsData = await alertsResponse.json();
+      setRecentAlerts(alertsData.slice(0, 3));
+      setRecentAlertsCount(alertsData.length);
+
+      const resourcesResponse = await fetch('http://localhost:5000/api/resources');
+      if (!resourcesResponse.ok) {
+        throw new Error('Failed to fetch resources');
+      }
+      const resourcesData = await resourcesResponse.json();
+      setTotalResources(resourcesData.length);
+      const lowStock = resourcesData.filter((r: any) => r.quantity < 100);
+      setLowStockResources(lowStock.slice(0, 4));
+      setLowStockItemsCount(lowStock.length);
     } catch (err: any) {
       alert(err.message);
     }
   };
 
-   useEffect(() => {
-    handleCount();
-  }, []); // empty dependency array to run only once
-
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
 
   const statCards = [
     {
       title: 'Total Resources',
-      value: stats.totalResources.toLocaleString(),
+      value: totalResources,
       icon: Package,
       color: 'bg-blue-500',
-      trend: '+12% from last month',
+      /*  trend: '+12% from last month',   */
     },
     {
-      title: 'Active Volunteers',
+      title: 'Total Volunteers',
       value: count,
       icon: Users,
       color: 'bg-green-500',
-      trend: '+8 new this week',
+      /*    trend: '+8 new this week',    */
     },
     {
       title: 'Recent Alerts',
-      value: stats.recentAlerts,
+      value: recentAlertsCount,
       icon: Bell,
       color: 'bg-purple-500',
-      trend: '3 unread',
+      /*    trend: '3 unread',      */
     },
     {
       title: 'Low Stock Items',
-      value: stats.lowStockItems,
+      value: lowStockItemsCount,
       icon: AlertTriangle,
       color: 'bg-orange-500',
-      trend: 'Requires attention',
+      /*    trend: 'Requires attention',   */
     },
   ];
 
@@ -93,7 +101,7 @@ export function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-gray-100 mb-1">{stat.value}</div>
-                <p className="text-gray-400">{stat.trend}</p>
+                {/*                <p className="text-gray-400">{stat.trend}</p>    */}
               </CardContent>
             </Card>
           );

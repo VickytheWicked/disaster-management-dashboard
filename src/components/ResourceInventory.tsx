@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -29,32 +29,46 @@ import {
 import { Badge } from './ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Search, Plus, Edit, Trash2, Package } from 'lucide-react';
-import { mockResources } from '../data/mockData';
 import { Resource } from '../types';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
-export function ResourceInventory() {
-  const [resources, setResources] = useState(mockResources);
+export function ResourceInventory({ location }: { location?: string }) {
+  const [resources, setResources] = useState<Resource[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterLocation, setFilterLocation] = useState('all');
   const [filterCondition, setFilterCondition] = useState('all');
   const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 
+  const fetchResources = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/resources');
+      if (!response.ok) {
+        throw new Error('Failed to fetch resources');
+      }
+      const data = await response.json();
+      setResources(data);
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
+  };
+
+  useEffect(() => {
+    fetchResources();
+  }, []);
+
   // Filter resources
   const filteredResources = resources.filter((resource) => {
     const matchesSearch =
       resource.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       resource.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      resource.id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesLocation = filterLocation === 'all' || resource.location === filterLocation;
-    const matchesCondition = filterCondition === 'all' || resource.condition === filterCondition;
+      String(resource.id).toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesLocation = !location || resource.location === location;
+    const matchesCondition =
+      filterCondition === 'all' || resource.condition === filterCondition;
     return matchesSearch && matchesLocation && matchesCondition;
   });
-
-  const locations = Array.from(new Set(mockResources.map((r) => r.location)));
 
   const getConditionColor = (condition: string) => {
     switch (condition) {
@@ -71,20 +85,72 @@ export function ResourceInventory() {
     }
   };
 
-  const handleDelete = (id: string) => {
-    setResources(resources.filter((r) => r.id !== id));
-    toast.success('Resource deleted successfully');
+  const handleDelete = async (id: number) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/resources/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to delete resource');
+      }
+      setResources(resources.filter((r) => r.id !== id));
+      toast.success('Resource deleted successfully');
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
   };
 
-  const ResourceForm = ({ resource, onSave }: { resource?: Resource; onSave: (data: Partial<Resource>) => void }) => {
+  const handleSave = async (data: Partial<Resource>) => {
+    const isUpdating = !!data.id;
+    const url = isUpdating
+      ? `http://localhost:5000/api/resources/${data.id}`
+      : 'http://localhost:5000/api/resources';
+    const method = isUpdating ? 'PUT' : 'POST';
+
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to ${isUpdating ? 'update' : 'add'} resource`);
+      }
+
+      if (isUpdating) {
+        setResources(
+          resources.map((r) => (r.id === data.id ? { ...r, ...data } : r))
+        );
+        toast.success('Resource updated successfully');
+        setIsEditDialogOpen(false);
+      } else {
+        fetchResources(); // Refetch to get the new resource with its ID
+        toast.success('Resource added successfully');
+        setIsAddDialogOpen(false);
+      }
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
+  };
+
+  const ResourceForm = ({
+    resource,
+    onSave,
+  }: {
+    resource?: Resource;
+    onSave: (data: Partial<Resource>) => void;
+  }) => {
     const [formData, setFormData] = useState<Partial<Resource>>(
       resource || {
         name: '',
         quantity: 0,
         unit: '',
         condition: 'New',
-        location: '',
-        category: '',
+        location: location || '',
+        category: 'Food and Nutrition',
       }
     );
 
@@ -107,12 +173,27 @@ export function ResourceInventory() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="category">Category *</Label>
-            <Input
-              id="category"
+            <Select
               value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              required
-            />
+              onValueChange={(value) =>
+                setFormData({ ...formData, category: value })
+              }
+            >
+              <SelectTrigger id="category">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Food and Nutrition">Food and Nutrition</SelectItem>
+                <SelectItem value="Water and Hydration">Water and Hydration</SelectItem>
+                <SelectItem value="Shelter and Bedding">Shelter and Bedding</SelectItem>
+                <SelectItem value="Clothing and Footwear">Clothing and Footwear</SelectItem>
+                <SelectItem value="Medical Supplies and First Aid">Medical Supplies and First Aid</SelectItem>
+                <SelectItem value="Hygiene and Sanitation">Hygiene and Sanitation</SelectItem>
+                <SelectItem value="Lighting and Power">Lighting and Power</SelectItem>
+                <SelectItem value="Cooking and Fuel">Cooking and Fuel</SelectItem>
+                <SelectItem value="Tools and Equipment">Tools and Equipment</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="quantity">Quantity *</Label>
@@ -120,7 +201,9 @@ export function ResourceInventory() {
               id="quantity"
               type="number"
               value={formData.quantity}
-              onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) })}
+              onChange={(e) =>
+                setFormData({ ...formData, quantity: parseInt(e.target.value) })
+              }
               required
             />
           </div>
@@ -134,11 +217,14 @@ export function ResourceInventory() {
               required
             />
           </div>
+          {/*
           <div className="space-y-2">
             <Label htmlFor="condition">Condition *</Label>
             <Select
               value={formData.condition}
-              onValueChange={(value) => setFormData({ ...formData, condition: value as any })}
+              onValueChange={(value) =>
+                setFormData({ ...formData, condition: value })
+              }
             >
               <SelectTrigger id="condition">
                 <SelectValue />
@@ -151,13 +237,17 @@ export function ResourceInventory() {
               </SelectContent>
             </Select>
           </div>
+          */}
           <div className="space-y-2">
             <Label htmlFor="location">Location *</Label>
             <Input
               id="location"
               value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, location: e.target.value })
+              }
               required
+              disabled={!!location}
             />
           </div>
           <div className="space-y-2 col-span-2">
@@ -166,7 +256,9 @@ export function ResourceInventory() {
               id="expiryDate"
               type="date"
               value={formData.expiryDate || ''}
-              onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, expiryDate: e.target.value })
+              }
             />
           </div>
         </div>
@@ -184,8 +276,10 @@ export function ResourceInventory() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-gray-100 mb-2">Resource Inventory</h1>
-          <p className="text-gray-400">Manage and track all disaster relief resources</p>
+          <h1 className="text-gray-100 mb-2">Inventory</h1>
+          <p className="text-gray-400">
+            Manage and track all disaster relief resources
+          </p>
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
@@ -201,24 +295,7 @@ export function ResourceInventory() {
                 Enter the details of the new resource item
               </DialogDescription>
             </DialogHeader>
-            <ResourceForm
-              onSave={(data) => {
-                const newResource: Resource = {
-                  id: `R${String(resources.length + 1).padStart(3, '0')}`,
-                  name: data.name!,
-                  quantity: data.quantity!,
-                  unit: data.unit!,
-                  condition: data.condition as any,
-                  location: data.location!,
-                  category: data.category!,
-                  expiryDate: data.expiryDate,
-                  lastUpdated: new Date().toISOString().split('T')[0],
-                };
-                setResources([...resources, newResource]);
-                setIsAddDialogOpen(false);
-                toast.success('Resource added successfully');
-              }}
-            />
+            <ResourceForm onSave={handleSave} />
           </DialogContent>
         </Dialog>
       </div>
@@ -236,19 +313,7 @@ export function ResourceInventory() {
                 className="pl-10"
               />
             </div>
-            <Select value={filterLocation} onValueChange={setFilterLocation}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by location" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Locations</SelectItem>
-                {locations.map((location) => (
-                  <SelectItem key={location} value={location}>
-                    {location}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {/*
             <Select value={filterCondition} onValueChange={setFilterCondition}>
               <SelectTrigger>
                 <SelectValue placeholder="Filter by condition" />
@@ -261,6 +326,7 @@ export function ResourceInventory() {
                 <SelectItem value="Damaged">Damaged</SelectItem>
               </SelectContent>
             </Select>
+            */}
           </div>
         </CardContent>
       </Card>
@@ -280,7 +346,7 @@ export function ResourceInventory() {
                   <TableHead>ID</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Quantity</TableHead>
-                  <TableHead>Condition</TableHead>
+                  {/*       <TableHead>Condition</TableHead>      */}
                   <TableHead>Location</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Expiry</TableHead>
@@ -305,11 +371,9 @@ export function ResourceInventory() {
                     <TableCell>
                       {resource.quantity} {resource.unit}
                     </TableCell>
-                    <TableCell>
-                      <Badge className={getConditionColor(resource.condition)}>
-                        {resource.condition}
-                      </Badge>
-                    </TableCell>
+                    {/*              <TableCell>
+                      {resource.condition}
+                    </TableCell>    */}
                     <TableCell>{resource.location}</TableCell>
                     <TableCell>{resource.category}</TableCell>
                     <TableCell>{resource.expiryDate || 'N/A'}</TableCell>
@@ -342,7 +406,9 @@ export function ResourceInventory() {
               <div className="text-center py-12">
                 <Package className="w-12 h-12 text-gray-600 mx-auto mb-4" />
                 <p className="text-gray-400">No resources found</p>
-                <p className="text-gray-500">Try adjusting your filters or add a new resource</p>
+                <p className="text-gray-500">
+                  Try adjusting your filters or add a new resource
+                </p>
               </div>
             )}
           </div>
@@ -357,18 +423,7 @@ export function ResourceInventory() {
             <DialogDescription>Update the resource details</DialogDescription>
           </DialogHeader>
           {selectedResource && (
-            <ResourceForm
-              resource={selectedResource}
-              onSave={(data) => {
-                setResources(
-                  resources.map((r) =>
-                    r.id === selectedResource.id ? { ...r, ...data } : r
-                  )
-                );
-                setIsEditDialogOpen(false);
-                toast.success('Resource updated successfully');
-              }}
-            />
+            <ResourceForm resource={selectedResource} onSave={handleSave} />
           )}
         </DialogContent>
       </Dialog>

@@ -29,7 +29,7 @@ export interface Alert {
   title: string;
   message: string;
   type: 'SMS' | 'Email' | 'Broadcast';
-  recipients: string;
+  recipient: string;
   timestamp: string;
   status: 'Sent' | 'Pending' | 'Failed';
   sender: string;
